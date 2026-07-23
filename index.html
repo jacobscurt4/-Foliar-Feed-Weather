@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Temp + Humidity Combo</title>
+
+<!-- PWA manifest -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1C3A1C">
+
+<!-- iOS home screen support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TempHumid">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<!-- Android/desktop icon -->
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  body {
+    font-family: Inter, system-ui, sans-serif;
+    background: #F5F0E8;
+    color: #111111;
+    margin: 0;
+    padding: 24px;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; }
+  h1 { color: #1C3A1C; font-size: 22px; margin-bottom: 4px; }
+  .loc { font-size: 13px; color: #555; margin-bottom: 20px; }
+  .cards { display: flex; gap: 12px; margin-bottom: 20px; }
+  .card {
+    flex: 1; background: #fff; border-radius: 10px; padding: 12px 10px;
+    text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .card.highlight { background: #1C3A1C; color: #F5F0E8; }
+  .card.in-range { background: #1C3A1C; color: #F5F0E8; }
+  .card.out-of-range { background: #C0392B; color: #FFFFFF; }
+  .card .label { font-size: 11px; opacity: .75; }
+  .card .value { font-size: 20px; font-weight: 700; }
+  .bold-warning {
+    font-weight: 700; font-size: 15px; color: #C0392B;
+    background: #FBEAEA; border: 1px solid #C0392B;
+    border-radius: 8px; padding: 10px 12px; margin-top: 12px;
+  }
+  .chartbox {
+    background: #fff; border-radius: 12px; padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .status { font-size: 13px; color: #555; margin-bottom: 8px; }
+  .note { font-size: 12px; margin-top: 8px; }
+  .error { color: #C0392B; }
+  .zip-box {
+    background: #fff; border-radius: 12px; padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-top: 12px;
+  }
+  .zip-box label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
+  .zip-box .row { display: flex; gap: 8px; }
+  .zip-box input {
+    flex: 1; padding: 10px 12px; font-size: 16px; border: 1px solid #ccc;
+    border-radius: 8px; box-sizing: border-box;
+  }
+  .zip-box button {
+    background: #1C3A1C; color: #F5F0E8; border: none; border-radius: 8px;
+    padding: 10px 16px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .zip-error { color: #C0392B; font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Temp + Humidity Combo</h1>
+  <div class="loc" id="loc">Locating…</div>
+  <div id="loading">Fetching current weather…</div>
+  <div id="zipBox" class="zip-box" style="display:none">
+    <label>We couldn't find your location. Enter your zip code instead:</label>
+    <div class="row">
+      <input type="text" id="zipInput" inputmode="numeric" maxlength="5" placeholder="e.g. 61254">
+      <button id="zipSubmit">Get Weather</button>
+    </div>
+    <div class="zip-error" id="zipError"></div>
+  </div>
+  <div id="content" style="display:none">
+    <div class="cards">
+      <div class="card"><div class="label">Temperature</div><div class="value" id="tempVal">--</div></div>
+      <div class="card"><div class="label">Humidity</div><div class="value" id="humVal">--</div></div>
+      <div class="card highlight" id="combCard"><div class="label">Combined</div><div class="value" id="combVal">--</div></div>
+    </div>
+    <div class="chartbox">
+      <div class="status">Combined value on a 140–160 scale</div>
+      <canvas id="chart" height="120"></canvas>
+      <div class="note" id="rangeNote"></div>
+    </div>
+    <div id="warningBox"></div>
+  </div>
+</div>
+
+<script>
+const FALLBACK = { lat: 41.593, lon: -90.112, label: "Erie, IL (approx.)" };
+
+function fetchWeather(lat, lon) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m&temperature_unit=fahrenheit`;
+  fetch(url)
+    .then(r => r.json())
+    .then(json => {
+      const temp = json.current.temperature_2m;
+      const humidity = json.current.relative_humidity_2m;
+      const combined = Math.round((temp + humidity) * 10) / 10;
+      renderResults(temp, humidity, combined);
+    })
+    .catch(() => {
+      document.getElementById('loading').innerHTML =
+        '<span class="error">Couldn\'t fetch weather data. Check your internet connection and try reloading.</span>';
+    });
+}
+
+function showLocationName(lat, lon, fallbackText) {
+  const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      const city = data.city || data.locality || '';
+      const state = data.principalSubdivisionCode ? data.principalSubdivisionCode.split('-')[1] : (data.principalSubdivision || '');
+      const label = city && state ? `${city}, ${state}` : (city || state || fallbackText);
+      document.getElementById('loc').textContent = `Weather for: ${label}`;
+    })
+    .catch(() => {
+      document.getElementById('loc').textContent = fallbackText;
+    });
+}
+
+function showZipEntry() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('zipBox').style.display = 'block';
+}
+
+function fetchByZip(zip) {
+  const zipErrorEl = document.getElementById('zipError');
+  zipErrorEl.textContent = '';
+  fetch(`https://api.zippopotam.us/us/${zip}`)
+    .then(r => {
+      if (!r.ok) throw new Error('bad zip');
+      return r.json();
+    })
+    .then(data => {
+      const place = data.places[0];
+      const lat = parseFloat(place.latitude);
+      const lon = parseFloat(place.longitude);
+      document.getElementById('loc').textContent = `Weather for: ${place['place name']}, ${place['state abbreviation']} (zip ${zip})`;
+      document.getElementById('zipBox').style.display = 'none';
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('loading').textContent = 'Fetching current weather…';
+      fetchWeather(lat, lon);
+    })
+    .catch(() => {
+      zipErrorEl.textContent = "Couldn't find that zip code. Please double-check and try again.";
+    });
+}
+
+document.getElementById('zipSubmit').addEventListener('click', () => {
+  const zip = document.getElementById('zipInput').value.trim();
+  if (!/^\d{5}$/.test(zip)) {
+    document.getElementById('zipError').textContent = 'Please enter a valid 5-digit zip code.';
+    return;
+  }
+  fetchByZip(zip);
+});
+
+function renderResults(temp, humidity, combined) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+  document.getElementById('tempVal').textContent = temp.toFixed(1) + '°F';
+  document.getElementById('humVal').textContent = humidity.toFixed(0) + '%';
+  document.getElementById('combVal').textContent = combined;
+
+  const inRange = combined >= 140 && combined <= 160;
+  const barColor = inRange ? '#1C3A1C' : '#C0392B';
+
+  const combCard = document.getElementById('combCard');
+  combCard.classList.remove('in-range', 'out-of-range');
+  combCard.classList.add(inRange ? 'in-range' : 'out-of-range');
+
+  const noteEl = document.getElementById('rangeNote');
+  noteEl.style.color = inRange ? '#1C3A1C' : '#C0392B';
+  noteEl.textContent = combined < 140 ? 'Below the 140–160 range'
+    : combined > 160 ? 'Above the 140–160 range'
+    : 'Within the 140–160 range';
+
+  const warningBox = document.getElementById('warningBox');
+  if (!inRange) {
+    const direction = combined < 140 ? 'below' : 'above';
+    warningBox.innerHTML =
+      '<div class="bold-warning">⚠ Out of range: combined value is ' + direction + ' the 140–160 target.</div>';
+  } else {
+    warningBox.innerHTML = '';
+  }
+
+  new Chart(document.getElementById('chart'), {
+    type: 'bar',
+    data: {
+      labels: ['Temp + Humidity'],
+      datasets: [{
+        data: [combined],
+        backgroundColor: barColor,
+        borderRadius: 6,
+        barThickness: 40
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      scales: {
+        x: { min: 140, max: 160, ticks: { stepSize: 5 } },
+        y: { display: false }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      document.getElementById('loc').textContent = 'Locating…';
+      showLocationName(pos.coords.latitude, pos.coords.longitude, 'Your current location');
+      fetchWeather(pos.coords.latitude, pos.coords.longitude);
+    },
+    () => {
+      showZipEntry();
+    },
+    { timeout: 5000 }
+  );
+} else {
+  showZipEntry();
+}
+</script>
+</body>
+</html>

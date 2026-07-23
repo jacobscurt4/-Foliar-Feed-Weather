@@ -1,0 +1,24 @@
+{
+  "name": "Temp + Humidity Combo",
+  "short_name": "TempHumid",
+  "description": "Shows current temperature and humidity, their combined value, and where it falls on a 140-160 scale.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F5F0E8",
+  "theme_color": "#1C3A1C",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
