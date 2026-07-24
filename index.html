@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Temp + Humidity Combo</title>
+<title>Foliar Feeding Weather</title>
 
 <!-- PWA manifest -->
 <link rel="manifest" href="manifest.json">
@@ -12,7 +12,7 @@
 <!-- iOS home screen support -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TempHumid">
+<meta name="apple-mobile-web-app-title" content="Foliar Feeding Weather">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
 <!-- Android/desktop icon -->
@@ -67,11 +67,45 @@
     padding: 10px 16px; font-size: 15px; font-weight: 600; cursor: pointer;
   }
   .zip-error { color: #C0392B; font-size: 13px; margin-top: 8px; }
+  .footer-note {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+  }
+  .footer-note p {
+    font-size: 12px;
+    color: #666;
+    margin: 4px 0;
+    line-height: 1.4;
+  }
+  .footer-note .brand {
+    color: #1C3A1C;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .footer-note .logo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .footer-note .logo-row img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+  .footer-note .website {
+    color: #1C3A1C;
+    font-size: 12px;
+    text-decoration: none;
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Temp + Humidity Combo</h1>
+  <h1>Foliar Feeding Weather</h1>
   <div class="loc" id="loc">Locating…</div>
   <div id="loading">Fetching current weather…</div>
   <div id="zipBox" class="zip-box" style="display:none">
@@ -94,6 +128,18 @@
       <div class="note" id="rangeNote"></div>
     </div>
     <div id="warningBox"></div>
+  </div>
+
+  <div class="footer-note">
+    <p>Weather data provided by Open-Meteo</p>
+    <p>This tool is not a substitute for a certified weather app in emergency or severe weather situations</p>
+    <div class="logo-row">
+      <img src="assets/maplewood-logo.png" alt="Maplewood Ag logo">
+      <div>
+        <p class="brand" style="margin:0">Developed and brought to you by Maplewood Ag</p>
+        <a class="website" href="https://www.maplewoodag.com" target="_blank" rel="noopener">www.maplewoodag.com</a>
+      </div>
+    </div>
   </div>
 </div>
 
