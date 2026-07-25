@@ -30,7 +30,8 @@
   .wrap { max-width: 480px; margin: 0 auto; }
   h1 { color: #1C3A1C; font-size: 22px; margin-bottom: 4px; }
   .loc { font-size: 13px; color: #555; margin-bottom: 20px; }
-  .cards { display: flex; gap: 12px; margin-bottom: 20px; }
+  .cards { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  .cards .card { flex: 1 1 calc(50% - 6px); min-width: 100px; box-sizing: border-box; }
   .card {
     flex: 1; background: #fff; border-radius: 10px; padding: 12px 10px;
     text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
@@ -120,6 +121,7 @@
     <div class="cards">
       <div class="card"><div class="label">Temperature</div><div class="value" id="tempVal">--</div></div>
       <div class="card"><div class="label">Humidity</div><div class="value" id="humVal">--</div></div>
+      <div class="card"><div class="label">Wind Speed</div><div class="value" id="windVal">--</div></div>
       <div class="card highlight" id="combCard"><div class="label">Combined</div><div class="value" id="combVal">--</div></div>
     </div>
     <div class="chartbox">
@@ -147,14 +149,15 @@
 const FALLBACK = { lat: 41.593, lon: -90.112, label: "Erie, IL (approx.)" };
 
 function fetchWeather(lat, lon) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m&temperature_unit=fahrenheit`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
   fetch(url)
     .then(r => r.json())
     .then(json => {
       const temp = json.current.temperature_2m;
       const humidity = json.current.relative_humidity_2m;
+      const wind = json.current.wind_speed_10m;
       const combined = Math.round((temp + humidity) * 10) / 10;
-      renderResults(temp, humidity, combined);
+      renderResults(temp, humidity, wind, combined);
     })
     .catch(() => {
       document.getElementById('loading').innerHTML =
@@ -214,11 +217,12 @@ document.getElementById('zipSubmit').addEventListener('click', () => {
   fetchByZip(zip);
 });
 
-function renderResults(temp, humidity, combined) {
+function renderResults(temp, humidity, wind, combined) {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('content').style.display = 'block';
   document.getElementById('tempVal').textContent = temp.toFixed(1) + '°F';
   document.getElementById('humVal').textContent = humidity.toFixed(0) + '%';
+  document.getElementById('windVal').textContent = wind.toFixed(1) + ' mph';
   document.getElementById('combVal').textContent = combined;
 
   const inRange = combined >= 140 && combined <= 160;
