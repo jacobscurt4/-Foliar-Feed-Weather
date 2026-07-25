@@ -25,9 +25,14 @@
     background: #F5F0E8;
     color: #111111;
     margin: 0;
-    padding: 24px;
+    min-height: 100vh;
+    box-sizing: border-box;
+    padding: max(48px, env(safe-area-inset-top) + 32px) 24px max(24px, env(safe-area-inset-bottom) + 12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  .wrap { max-width: 480px; margin: 0 auto; }
+  .wrap { max-width: 480px; width: 100%; margin: 0 auto; }
   h1 { color: #1C3A1C; font-size: 22px; margin-bottom: 4px; }
   .loc { font-size: 13px; color: #555; margin-bottom: 20px; }
   .header-row {
