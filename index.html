@@ -84,6 +84,29 @@
     background: #FBEAEA; border: 1px solid #C0392B;
     border-radius: 8px; padding: 10px 12px; margin-top: 12px;
   }
+  .fit-banner {
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .fit-banner .fit-title {
+    font-weight: 700;
+    font-size: 16px;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .fit-banner.is-fit {
+    background: #E9F1E4;
+    border: 1px solid #1C3A1C;
+    color: #1C3A1C;
+  }
+  .fit-banner.is-not-fit {
+    background: #FBEAEA;
+    border: 1px solid #C0392B;
+    color: #8C2A20;
+  }
   .chartbox {
     background: #fff; border-radius: 12px; padding: 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
@@ -163,6 +186,7 @@
     <div class="zip-error" id="zipError"></div>
   </div>
   <div id="content" style="display:none">
+    <div class="fit-banner" id="fitBanner" style="display:none"></div>
     <div class="cards">
       <div class="card"><div class="label">Temperature</div><div class="value" id="tempVal">--</div></div>
       <div class="card"><div class="label">Humidity</div><div class="value" id="humVal">--</div></div>
@@ -194,15 +218,17 @@
 const FALLBACK = { lat: 41.593, lon: -90.112, label: "Erie, IL (approx.)" };
 
 function fetchWeather(lat, lon) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`;
   fetch(url)
     .then(r => r.json())
     .then(json => {
       const temp = json.current.temperature_2m;
       const humidity = json.current.relative_humidity_2m;
       const wind = json.current.wind_speed_10m;
+      const dayHigh = (json.daily && json.daily.temperature_2m_max && json.daily.temperature_2m_max[0] !== undefined)
+        ? json.daily.temperature_2m_max[0] : null;
       const combined = Math.round((temp + humidity) * 10) / 10;
-      renderResults(temp, humidity, wind, combined);
+      renderResults(temp, humidity, wind, dayHigh, combined);
     })
     .catch(() => {
       document.getElementById('loading').innerHTML =
@@ -262,7 +288,7 @@ document.getElementById('zipSubmit').addEventListener('click', () => {
   fetchByZip(zip);
 });
 
-function renderResults(temp, humidity, wind, combined) {
+function renderResults(temp, humidity, wind, dayHigh, combined) {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('content').style.display = 'block';
   document.getElementById('tempVal').textContent = temp.toFixed(1) + '°F';
@@ -283,14 +309,35 @@ function renderResults(temp, humidity, wind, combined) {
     : combined > 160 ? 'Above the 140–160 range'
     : 'Within the 140–160 range';
 
-  const warningBox = document.getElementById('warningBox');
-  if (!inRange) {
-    const direction = combined < 140 ? 'below' : 'above';
-    warningBox.innerHTML =
-      '<div class="bold-warning">⚠ Out of range: combined value is ' + direction + ' the 140–160 target.</div>';
-  } else {
-    warningBox.innerHTML = '';
+  // Foliar feeding fitness rules:
+  // 1. Current temp over 84°F: never fit, regardless of the combined value.
+  // 2. If today's forecast high is over 85°F, current temp must have cooled at
+  //    least 10°F from that high before it's acceptable to foliar feed.
+  // 3. Otherwise, fall back to the combined temp+humidity 140-160 range.
+  let isFit = true;
+  let reason = 'Conditions are within the acceptable range for foliar feeding.';
+
+  if (temp > 84) {
+    isFit = false;
+    reason = `Current temperature (${temp.toFixed(1)}°F) is above 84°F — not fit to foliar feed, regardless of the temp/humidity combination.`;
+  } else if (dayHigh !== null && dayHigh > 85 && temp > (dayHigh - 10)) {
+    isFit = false;
+    const cooldownTarget = (dayHigh - 10).toFixed(1);
+    reason = `Today's forecast high is ${dayHigh.toFixed(1)}°F. Temperature needs to cool to ${cooldownTarget}°F or below before foliar feeding is acceptable.`;
+  } else if (!inRange) {
+    isFit = false;
+    reason = `Combined temp + humidity value is ${combined < 140 ? 'below' : 'above'} the 140–160 target.`;
   }
+
+  const fitBanner = document.getElementById('fitBanner');
+  fitBanner.style.display = 'block';
+  fitBanner.classList.remove('is-fit', 'is-not-fit');
+  fitBanner.classList.add(isFit ? 'is-fit' : 'is-not-fit');
+  fitBanner.innerHTML =
+    `<span class="fit-title">${isFit ? '✅ Fit to Foliar Feed' : '🚫 Not Fit to Foliar Feed'}</span>${reason}`;
+
+  const warningBox = document.getElementById('warningBox');
+  warningBox.innerHTML = '';
 
   new Chart(document.getElementById('chart'), {
     type: 'bar',
