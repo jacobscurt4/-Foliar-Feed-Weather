@@ -311,29 +311,29 @@ function renderResults(temp, humidity, wind, dayHigh, combined) {
 
   const inRange = combined >= 140 && combined <= 160;
 
-  // Foliar feeding fitness rules, checked in order:
-  // 1. Current temp over 84°F: never fit, regardless of the combined value.
-  // 2. Wind speed over 6 mph: never fit, regardless of temp/humidity.
-  // 3. If today's forecast high is over 85°F, current temp must have cooled at
-  //    least 10°F from that high before it's acceptable to foliar feed.
-  // 4. Otherwise, fall back to the combined temp+humidity 140-160 range.
-  let isFit = true;
-  let reason = 'Conditions are within the acceptable range for foliar feeding.';
+  // Foliar feeding fitness rules — each is checked independently so that if
+  // multiple conditions fail at once (e.g. wind AND temperature), all of them
+  // are reported together rather than only the first one found.
+  const stopReasons = [];
 
   if (temp > 84) {
-    isFit = false;
-    reason = `Current temperature (${temp.toFixed(1)}°F) is above 84°F — not fit to foliar feed, regardless of the temp/humidity combination.`;
-  } else if (wind > 6) {
-    isFit = false;
-    reason = `Wind speed (${wind.toFixed(1)} mph) is above 6 mph — not fit to foliar feed.`;
-  } else if (dayHigh !== null && dayHigh > 85 && temp > (dayHigh - 10)) {
-    isFit = false;
-    const cooldownTarget = (dayHigh - 10).toFixed(1);
-    reason = `Today's forecast high is ${dayHigh.toFixed(1)}°F. Temperature needs to cool to ${cooldownTarget}°F or below before foliar feeding is acceptable.`;
-  } else if (!inRange) {
-    isFit = false;
-    reason = `Combined temp + humidity value is ${combined < 140 ? 'below' : 'above'} the 140–160 target.`;
+    stopReasons.push(`Current temperature (${temp.toFixed(1)}°F) is above 84°F.`);
   }
+  if (wind > 6) {
+    stopReasons.push(`Wind speed (${wind.toFixed(1)} mph) is above 6 mph.`);
+  }
+  if (dayHigh !== null && dayHigh > 85 && temp > (dayHigh - 10)) {
+    const cooldownTarget = (dayHigh - 10).toFixed(1);
+    stopReasons.push(`Today's forecast high is ${dayHigh.toFixed(1)}°F — temperature needs to cool to ${cooldownTarget}°F or below.`);
+  }
+  if (!inRange) {
+    stopReasons.push(`Combined temp + humidity value is ${combined < 140 ? 'below' : 'above'} the 140–160 target.`);
+  }
+
+  const isFit = stopReasons.length === 0;
+  const reason = isFit
+    ? 'Conditions are within the acceptable range for foliar feeding.'
+    : stopReasons.map(r => `• ${r}`).join('<br>');
 
   // Chart bar and Combined card turn red whenever ANY rule fails (temp, wind,
   // cooldown, or range) — not just when the combined value itself is out of range.
@@ -354,7 +354,7 @@ function renderResults(temp, humidity, wind, dayHigh, combined) {
   fitBanner.classList.remove('is-fit', 'is-not-fit');
   fitBanner.classList.add(isFit ? 'is-fit' : 'is-not-fit');
   fitBanner.innerHTML =
-    `<span class="fit-title">${isFit ? '✅ Fit to Foliar Feed' : '🚫 Not Fit to Foliar Feed'}</span>${reason}`;
+    `<span class="fit-title">${isFit ? '✅ Fit to Foliar Feed' : '🛑 STOP - Not fit to Foliar Feed'}</span>${reason}`;
 
   const dayHighNote = document.getElementById('dayHighNote');
   if (dayHigh !== null && dayHigh > 84) {
