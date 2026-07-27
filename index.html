@@ -322,9 +322,16 @@ function renderResults(temp, humidity, wind, dayHigh, combined) {
   if (wind > 6) {
     stopReasons.push(`Wind speed (${wind.toFixed(1)} mph) is above 6 mph.`);
   }
-  if (dayHigh !== null && dayHigh > 85 && temp > (dayHigh - 10)) {
-    const cooldownTarget = (dayHigh - 10).toFixed(1);
-    stopReasons.push(`Today's forecast high is ${dayHigh.toFixed(1)}°F — temperature needs to cool to ${cooldownTarget}°F or below.`);
+  if (dayHigh !== null && dayHigh > 85) {
+    // The actual cooldown target is whichever is stricter: 10°F below today's
+    // high, or the 84°F hard cap. Only show this message when the 10°F-below-high
+    // threshold is the binding constraint (i.e. lower than 84) — otherwise the
+    // "above 84°F" message above already covers it and this would just repeat
+    // a looser, misleading number.
+    const cooldownTarget = Math.min(dayHigh - 10, 84);
+    if (temp > cooldownTarget && cooldownTarget < 84) {
+      stopReasons.push(`Today's forecast high is ${dayHigh.toFixed(1)}°F — temperature needs to cool to ${cooldownTarget.toFixed(1)}°F or below (10°F below today's high, and always under 84°F).`);
+    }
   }
   if (!inRange) {
     stopReasons.push(`Combined temp + humidity value is ${combined < 140 ? 'below' : 'above'} the 140–160 target.`);
