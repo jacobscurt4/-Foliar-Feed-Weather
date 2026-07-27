@@ -107,6 +107,16 @@
     border: 1px solid #C0392B;
     color: #8C2A20;
   }
+  .day-high-note {
+    background: #FCF3DC;
+    border: 1px solid #C8A028;
+    color: #6b5410;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
   .chartbox {
     background: #fff; border-radius: 12px; padding: 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
@@ -187,6 +197,7 @@
   </div>
   <div id="content" style="display:none">
     <div class="fit-banner" id="fitBanner" style="display:none"></div>
+    <div class="day-high-note" id="dayHighNote" style="display:none"></div>
     <div class="cards">
       <div class="card"><div class="label">Temperature</div><div class="value" id="tempVal">--</div></div>
       <div class="card"><div class="label">Humidity</div><div class="value" id="humVal">--</div></div>
@@ -337,6 +348,15 @@ function renderResults(temp, humidity, wind, dayHigh, combined) {
   fitBanner.classList.add(isFit ? 'is-fit' : 'is-not-fit');
   fitBanner.innerHTML =
     `<span class="fit-title">${isFit ? '✅ Fit to Foliar Feed' : '🚫 Not Fit to Foliar Feed'}</span>${reason}`;
+
+  const dayHighNote = document.getElementById('dayHighNote');
+  if (dayHigh !== null && dayHigh > 84) {
+    dayHighNote.style.display = 'block';
+    dayHighNote.textContent = `Today's recorded high: ${dayHigh.toFixed(1)}°F`;
+  } else {
+    dayHighNote.style.display = 'none';
+    dayHighNote.textContent = '';
+  }
 
   const warningBox = document.getElementById('warningBox');
   warningBox.innerHTML = '';
