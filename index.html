@@ -310,29 +310,22 @@ function renderResults(temp, humidity, wind, dayHigh, combined) {
   document.getElementById('combVal').textContent = combined;
 
   const inRange = combined >= 140 && combined <= 160;
-  const barColor = inRange ? '#1C3A1C' : '#C0392B';
 
-  const combCard = document.getElementById('combCard');
-  combCard.classList.remove('in-range', 'out-of-range');
-  combCard.classList.add(inRange ? 'in-range' : 'out-of-range');
-
-  const noteEl = document.getElementById('rangeNote');
-  noteEl.style.color = inRange ? '#1C3A1C' : '#C0392B';
-  noteEl.textContent = combined < 140 ? 'Below the 140–160 range'
-    : combined > 160 ? 'Above the 140–160 range'
-    : 'Within the 140–160 range';
-
-  // Foliar feeding fitness rules:
+  // Foliar feeding fitness rules, checked in order:
   // 1. Current temp over 84°F: never fit, regardless of the combined value.
-  // 2. If today's forecast high is over 85°F, current temp must have cooled at
+  // 2. Wind speed over 6 mph: never fit, regardless of temp/humidity.
+  // 3. If today's forecast high is over 85°F, current temp must have cooled at
   //    least 10°F from that high before it's acceptable to foliar feed.
-  // 3. Otherwise, fall back to the combined temp+humidity 140-160 range.
+  // 4. Otherwise, fall back to the combined temp+humidity 140-160 range.
   let isFit = true;
   let reason = 'Conditions are within the acceptable range for foliar feeding.';
 
   if (temp > 84) {
     isFit = false;
     reason = `Current temperature (${temp.toFixed(1)}°F) is above 84°F — not fit to foliar feed, regardless of the temp/humidity combination.`;
+  } else if (wind > 6) {
+    isFit = false;
+    reason = `Wind speed (${wind.toFixed(1)} mph) is above 6 mph — not fit to foliar feed.`;
   } else if (dayHigh !== null && dayHigh > 85 && temp > (dayHigh - 10)) {
     isFit = false;
     const cooldownTarget = (dayHigh - 10).toFixed(1);
@@ -341,6 +334,20 @@ function renderResults(temp, humidity, wind, dayHigh, combined) {
     isFit = false;
     reason = `Combined temp + humidity value is ${combined < 140 ? 'below' : 'above'} the 140–160 target.`;
   }
+
+  // Chart bar and Combined card turn red whenever ANY rule fails (temp, wind,
+  // cooldown, or range) — not just when the combined value itself is out of range.
+  const barColor = isFit ? '#1C3A1C' : '#C0392B';
+
+  const combCard = document.getElementById('combCard');
+  combCard.classList.remove('in-range', 'out-of-range');
+  combCard.classList.add(isFit ? 'in-range' : 'out-of-range');
+
+  const noteEl = document.getElementById('rangeNote');
+  noteEl.style.color = inRange ? '#1C3A1C' : '#C0392B';
+  noteEl.textContent = combined < 140 ? 'Below the 140–160 range'
+    : combined > 160 ? 'Above the 140–160 range'
+    : 'Within the 140–160 range';
 
   const fitBanner = document.getElementById('fitBanner');
   fitBanner.style.display = 'block';
